@@ -9,14 +9,24 @@ object Election {
   }
 
   class Count(validCandidates: Set[Candidate], votes: Seq[Vote]) {
-    val votesByCandidate = (votes groupBy { _.firstChoiceFrom(validCandidates) }) mapValues { _.size }
+    val votesByCandidate = votes groupBy { _.firstChoiceFrom(validCandidates) } collect { case (Some(c), v) => (c, v) }
+
+    val allocatedVotes = votesByCandidate.values.flatten
+
+    def votesFor(candidate: Candidate): Int = votesByCandidate.getOrElse(candidate,List()).size
+
+    val candidateRanking = Ordering[Int].on[Candidate]( votesFor(_) )
+
+    val       mostVotesCandidate = validCandidates max candidateRanking
+    lazy val leastVotesCandidate = validCandidates min candidateRanking
 
 
-    val candidateRanking = Ordering[Int].on[Candidate]( candidate => votesByCandidate.getOrElse(Some(candidate),0) )
   }
 
   def elect(validCandidates: Set[Candidate], votes: Seq[Vote]): Candidate = {
     val votesByCandidate = (votes groupBy { _.firstChoiceFrom(validCandidates) }) mapValues { _.size }
+
+    val c = new Count(validCandidates, votes)
     
     println(votesByCandidate)
 
@@ -25,10 +35,13 @@ object Election {
     val       mostVotesCandidate = validCandidates max candidateRanking
     lazy val leastVotesCandidate = validCandidates min candidateRanking
 
+    val remainingCandidates = validCandidates - leastVotesCandidate
+    
     if (votesByCandidate.getOrElse(Some(mostVotesCandidate), 0) >= votes.size / 2 || validCandidates.size <= 2) mostVotesCandidate
     else elect(validCandidates - leastVotesCandidate, votes)
-  }
 
+
+  }
 
 
   def main(args: Array[String]) {
